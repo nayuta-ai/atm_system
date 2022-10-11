@@ -1,0 +1,22 @@
+version: "3"
+services:
+  postgres:
+    image: postgres:14
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgre
+      POSTGRES_PASSWORD: postgre
+    volumes:
+        - ./postgres/initdb:/docker-entrypoint-initdb.d
+
+  app:
+    build: ./app
+    depends_on:
+      - postgres
+    environment:
+        TZ: "Asia/Tokyo"
+    command:
+      tail -f /dev/null
+    volumes:
+        - ./:/workspace

@@ -1,13 +1,16 @@
-from typing import Tuple
-import psycopg2
 import datetime
+
+import psycopg2
 
 
 class PostgreDB:
-    def __init__(self, db="postgre") -> None:
+    def __init__(self, db="postgres") -> None:
         self.conn = self.connect_db(db=db)
 
-    def connect_db(self, db: str = "postgre") -> psycopg2.extensions.connection:
+    def connect_db(
+        self,
+        db: str = "postgres"
+    ) -> psycopg2.extensions.connection:
         """ A function for connecting postgre db
 
         Args:
@@ -58,7 +61,7 @@ class PostgreDB:
 
     def insert_logs(
         self,
-        records: tuple[(str, str, int, datetime.datetime.timestamp)]
+        records: tuple[str, str, int, datetime.datetime.timestamp]
     ) -> None:
         """ A function for inserting data to logs table.
 
@@ -75,26 +78,39 @@ class PostgreDB:
             cursor.executemany(insert_logs_query, records)
             self.conn.commit()
 
-    def insert_total(self, records: tuple[int]) -> None:
+    def update_total(self, user: str, money: int) -> None:
         """ A function for inserting data to total table.
 
         Args:
             records (list(tuple(str, int))):
                 Data for inserting to the table called total.
         """
+        count_total_query = f"\
+            select count(name = '{user}') from total"
         insert_total_query = "\
-            insert into total\
-            (name, all_money)\
-            values (%s, %s)"
+            insert into total(\
+                name, all_money\
+            )\
+            values(%s, %s)"
+        update_total_query = f"\
+            update total\
+            set all_money = {money}\
+            where name = '{user}'"
         with self.conn.cursor() as cursor:
-            cursor.executemany(insert_total_query, records)
-            self.conn.commit()
+            cursor.execute(count_total_query)
+            num_record = cursor.fetchone()
+            if num_record[0]:
+                cursor.execute(update_total_query)
+                self.conn.commit()
+            else:
+                cursor.executemany(insert_total_query, [(user, money)])
+                self.conn.commit()
 
     def fetch_from_logs(
         self,
         user: str,
         num: int
-    ) -> list[list[tuple[(str, int, datetime.datetime.timestamp)]]]:
+    ) -> list[list[tuple[str, int, datetime.datetime.timestamp]]]:
         """ A function for fetching some data from logs table
 
         Args:
@@ -102,15 +118,21 @@ class PostgreDB:
             num (int): Number of cases retrieved from DB
         """
         try:
-            fetch_from_logs_query = \
-                f"select status, money, time from logs where name={user} limit {num}"
+            fetch_from_logs_query = f"\
+                select\
+                    status, money, time\
+                from\
+                    logs\
+                where\
+                    name='{user}'\
+                limit\
+                    {num}"
             with self.conn.cursor() as cursor:
                 cursor.execute(fetch_from_logs_query)
                 return cursor.fetchall()
 
         except (Exception, psycopg2.DatabaseError) as error:
             print(error)
-            return []
 
     def fetch_from_total(self, user: str) -> list[int]:
         """ A function for fetching some data from total table
@@ -118,15 +140,11 @@ class PostgreDB:
         Args:
             user (str): User name
         """
-        try:
-            fetch_from_logs_query = \
-                f"select money from logs where name={user}"
-            with self.conn.cursor() as cursor:
-                cursor.execute(fetch_from_logs_query)
-                return cursor.fetchone()
-
-        except:
-            return []
+        fetch_from_logs_query = \
+            f"select all_money from total where name='{user}'"
+        with self.conn.cursor() as cursor:
+            cursor.execute(fetch_from_logs_query)
+            return cursor.fetchone()
 
     def close_connection(self) -> None:
         """ A function for closing connection to db.
@@ -135,9 +153,3 @@ class PostgreDB:
         self.conn.close()
         # (To Do) Rewrite it by using logs.
         print("Close the PostgreSQL database...")
-
-
-if __name__ == "__main__":
-    db = PostgreDB()
-    # create_table(conn)
-    db.create_table()

@@ -1,6 +1,6 @@
 """Python 3.10, PEP8"""
 import datetime
-from typing import Any
+
 from model import PostgreDB
 
 
@@ -26,15 +26,13 @@ class ATM:
             raise ValueError("Deposit limit exceeded.")
         all_money -= money
         dt_now = datetime.datetime.now()
-        self.insert_data(
-            "logs", [(
-                self.user,
-                "withdraw",
-                money,
-                dt_now.strftime('%Y-%m-%d %H:%M:%S')
-            )]
-        )
-        self.insert_data("total", [(self.user, all_money)])
+        self.db.insert_logs([(
+            self.user,
+            "withdraw",
+            money,
+            dt_now.strftime('%Y-%m-%d %H:%M:%S')
+        )])
+        self.db.update_total(self.user, all_money)
 
     def deposit(self, money: int):
         """ A function for depositing
@@ -43,18 +41,15 @@ class ATM:
             money (int): Money to be deposited
         """
         all_money = self.fetch_money()
-
         all_money += money
         dt_now = datetime.datetime.now()
-        self.insert_data(
-            "logs", [(
-                self.user,
-                "deposit",
-                money,
-                dt_now.strftime('%Y-%m-%d %H:%M:%S')
-            )]
-        )
-        self.insert_data("total", [(self.user, all_money)])
+        self.db.insert_logs([(
+            self.user,
+            "deposit",
+            money,
+            dt_now.strftime('%Y-%m-%d %H:%M:%S')
+        )])
+        self.db.update_total(self.user, all_money)
 
     def fetch_logs(
         self,
@@ -80,30 +75,15 @@ class ATM:
         else:
             return record[0]
 
-    def insert_data(self, table: str, content: list[tuple[(any)]]) -> None:
-        """ A function for inserting some data into DB
 
-        Args:
-            table (str): an target table
-            content (list(any)): A data to insert
-                (If insert it into logs table,
-                it is list(tuple(str, str, int, datetime.datetime.timestamp)),
-                If insert it into total table, it is list(tuple(str, int)))
-
-        """
-        if table == "logs":
-            self.db.insert_logs(records=content)
-        elif table == "total":
-            self.db.insert_total(records=content)
-
-
-if __name__ == "__main__":
-    atm = ATM("user")
-    atm.deposit(100)
-    atm.deposit(100)
-    atm.withdraw(0)
-    atm.fetch_logs(1)
-
+"""Use Case
+# These tables exist.
+atm = ATM("postgre")
+atm.deposit(100)
+atm.deposit(100)
+atm.withdraw(200)
+atm.fetch_logs(3)
+"""
 
 """DB
 logs (table 1)
